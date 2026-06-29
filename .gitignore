@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# Frontend
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# User-specific files
+*.user
+*.suo
+
+# Local database backups
+*.backup
+*.bak
+
+# Secrets / local config
+appsettings.Development.json
