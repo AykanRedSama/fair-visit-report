@@ -20,5 +20,5 @@ public class ApplicationDbContext : DbContext
     /// <summary>
     /// Database set for visit reports.
     /// </summary>
-    public DbSet<VisitReportEntity> VisitReports => Set<VisitReportEntity>();
+    public DbSet<VisitReport> VisitReports => Set<VisitReport>();
 }

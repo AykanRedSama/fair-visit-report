@@ -5,15 +5,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FairVisitReport.Api.Services;
 
+/// <summary>
+/// Provides business logic for exporting visit reports.
+/// </summary>
 public class ExportService
 {
     private readonly ApplicationDbContext db;
 
+    /// <summary>
+    /// Creates a new export service.
+    /// </summary>
+    /// <param name="db">The application database context.</param>
     public ExportService(ApplicationDbContext db)
     {
         this.db = db;
     }
 
+    /// <summary>
+    /// Exports a single visit report by its technical identifier.
+    /// </summary>
+    /// <param name="id">The technical identifier of the visit report.</param>
+    /// <returns>The export response or null if the visit report does not exist.</returns>
     public async Task<VisitReportExportResponseDto?> ExportSingleAsync(long id)
     {
         var entity = await db.VisitReports.FindAsync(id);
@@ -34,6 +46,11 @@ public class ExportService
         return CreateResponse([entity], exportedAt);
     }
 
+    /// <summary>
+    /// Exports multiple visit reports by their technical identifiers.
+    /// </summary>
+    /// <param name="ids">The technical identifiers of the visit reports.</param>
+    /// <returns>The export response or null if one or more visit reports do not exist.</returns>
     public async Task<VisitReportExportResponseDto?> ExportManyAsync(List<long> ids)
     {
         var distinctIds = ids.Distinct().ToList();
@@ -61,6 +78,10 @@ public class ExportService
         return CreateResponse(entities, exportedAt);
     }
 
+    /// <summary>
+    /// Exports all visit reports that have not been exported yet.
+    /// </summary>
+    /// <returns>The export response containing all previously unexported visit reports.</returns>
     public async Task<VisitReportExportResponseDto> ExportUnexportedAsync()
     {
         var entities = await db.VisitReports
@@ -82,7 +103,7 @@ public class ExportService
         return CreateResponse(entities, exportedAt);
     }
 
-    private static VisitReportExportResponseDto CreateResponse(List<VisitReportEntity> entities, DateTimeOffset exportedAt)
+    private static VisitReportExportResponseDto CreateResponse(List<VisitReport> entities, DateTimeOffset exportedAt)
     {
         return new VisitReportExportResponseDto
         {
@@ -91,7 +112,7 @@ public class ExportService
         };
     }
 
-    private static VisitReportExportDto ToExportDto(VisitReportEntity entity)
+    private static VisitReportExportDto ToExportDto(VisitReport entity)
     {
         return new VisitReportExportDto
         {

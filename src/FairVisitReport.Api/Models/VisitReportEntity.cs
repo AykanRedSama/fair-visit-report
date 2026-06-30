@@ -7,7 +7,7 @@ namespace FairVisitReport.Api.Models;
 /// Represents a visit report stored in the database.
 /// </summary>
 [Table("visit_reports")]
-public class VisitReportEntity
+public class VisitReport
 {
     /// <summary>
     /// Technical primary key of the visit report.

@@ -5,20 +5,32 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FairVisitReport.Api.Services;
 
+/// <summary>
+/// Provides business logic for creating, reading, updating and deleting visit reports.
+/// </summary>
 public class VisitReportService
 {
     private readonly ApplicationDbContext db;
 
+    /// <summary>
+    /// Creates a new visit report service.
+    /// </summary>
+    /// <param name="db">The application database context.</param>
     public VisitReportService(ApplicationDbContext db)
     {
         this.db = db;
     }
 
+    /// <summary>
+    /// Creates a new visit report and stores it in the database.
+    /// </summary>
+    /// <param name="request">The data required to create the visit report.</param>
+    /// <returns>The created visit report.</returns>
     public async Task<VisitReportDto> CreateAsync(CreateVisitReportRequest request)
     {
         var now = DateTimeOffset.UtcNow;
 
-        var entity = new VisitReportEntity
+        var entity = new VisitReport
         {
             Name = request.Name.Trim(),
             Position = request.Position?.Trim(),
@@ -37,6 +49,18 @@ public class VisitReportService
 
         return ToDto(entity);
     }
+
+    /// <summary>
+    /// Returns a paginated, filterable and sortable list of visit reports.
+    /// </summary>
+    /// <param name="exported">Optional export status filter.</param>
+    /// <param name="company">Optional company filter.</param>
+    /// <param name="name">Optional visitor name filter.</param>
+    /// <param name="page">The requested page number.</param>
+    /// <param name="pageSize">The amount of items per page.</param>
+    /// <param name="sortBy">The field used for sorting.</param>
+    /// <param name="sortDirection">The sorting direction.</param>
+    /// <returns>A paginated result containing visit reports.</returns>
     public async Task<PaginatedResult<VisitReportDto>> GetAllAsync(
         bool? exported,
         string? company,
@@ -70,7 +94,8 @@ public class VisitReportService
         }
 
         var descending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
-query = sortBy?.ToLower() switch
+
+        query = sortBy?.ToLower() switch
         {
             "name" => descending ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
             "company" => descending ? query.OrderByDescending(x => x.Company) : query.OrderBy(x => x.Company),
@@ -96,6 +121,11 @@ query = sortBy?.ToLower() switch
         };
     }
 
+    /// <summary>
+    /// Returns a single visit report by its technical identifier.
+    /// </summary>
+    /// <param name="id">The technical identifier of the visit report.</param>
+    /// <returns>The visit report or null if it does not exist.</returns>
     public async Task<VisitReportDto?> GetByIdAsync(long id)
     {
         var entity = await db.VisitReports.FindAsync(id);
@@ -107,6 +137,13 @@ query = sortBy?.ToLower() switch
 
         return ToDto(entity);
     }
+
+    /// <summary>
+    /// Updates an existing visit report.
+    /// </summary>
+    /// <param name="id">The technical identifier of the visit report.</param>
+    /// <param name="request">The updated visit report data.</param>
+    /// <returns>The updated visit report or null if it does not exist.</returns>
     public async Task<VisitReportDto?> UpdateAsync(long id, UpdateVisitReportRequest request)
     {
         var entity = await db.VisitReports.FindAsync(id);
@@ -129,6 +166,11 @@ query = sortBy?.ToLower() switch
         return ToDto(entity);
     }
 
+    /// <summary>
+    /// Deletes a single visit report if it has already been exported.
+    /// </summary>
+    /// <param name="id">The technical identifier of the visit report.</param>
+    /// <returns>A status string describing the delete result.</returns>
     public async Task<string> DeleteAsync(long id)
     {
         var entity = await db.VisitReports.FindAsync(id);
@@ -148,6 +190,11 @@ query = sortBy?.ToLower() switch
 
         return "deleted";
     }
+
+    /// <summary>
+    /// Deletes all visit reports that have already been exported.
+    /// </summary>
+    /// <returns>The number of deleted visit reports.</returns>
     public async Task<int> DeleteAllExportedAsync()
     {
         var entities = await db.VisitReports
@@ -160,7 +207,7 @@ query = sortBy?.ToLower() switch
         return entities.Count;
     }
 
-    private static VisitReportDto ToDto(VisitReportEntity entity)
+    private static VisitReportDto ToDto(VisitReport entity)
     {
         return new VisitReportDto
         {
