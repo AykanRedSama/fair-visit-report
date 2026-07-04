@@ -15,7 +15,6 @@ public class ExportService
     /// <summary>
     /// Creates a new export service.
     /// </summary>
-    /// <param name="db">The application database context.</param>
     public ExportService(ApplicationDbContext db)
     {
         this.db = db;
@@ -24,8 +23,6 @@ public class ExportService
     /// <summary>
     /// Exports a single visit report by its technical identifier.
     /// </summary>
-    /// <param name="id">The technical identifier of the visit report.</param>
-    /// <returns>The export response or null if the visit report does not exist.</returns>
     public async Task<VisitReportExportResponseDto?> ExportSingleAsync(long id)
     {
         var entity = await db.VisitReports.FindAsync(id);
@@ -49,8 +46,6 @@ public class ExportService
     /// <summary>
     /// Exports multiple visit reports by their technical identifiers.
     /// </summary>
-    /// <param name="ids">The technical identifiers of the visit reports.</param>
-    /// <returns>The export response or null if one or more visit reports do not exist.</returns>
     public async Task<VisitReportExportResponseDto?> ExportManyAsync(List<long> ids)
     {
         var distinctIds = ids.Distinct().ToList();
@@ -81,7 +76,6 @@ public class ExportService
     /// <summary>
     /// Exports all visit reports that have not been exported yet.
     /// </summary>
-    /// <returns>The export response containing all previously unexported visit reports.</returns>
     public async Task<VisitReportExportResponseDto> ExportUnexportedAsync()
     {
         var entities = await db.VisitReports
