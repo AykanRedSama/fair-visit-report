@@ -1,3 +1,4 @@
+
 let currentPage = 1;
 let currentPageSize = 25;
 let totalPages = 1;
@@ -34,7 +35,7 @@ function renderReports(result) {
     reportsTableBody.innerHTML = "";
 
     if (!result.items || result.items.length === 0) {
-        reportsTableBody.innerHTML = '<tr><td colspan="9" class="text-center">No reports found.</td></tr>';
+        reportsTableBody.innerHTML = '<tr><td colspan="10" class="text-center">No reports found.</td></tr>';
         paginationInfo.textContent = "Page 1 of 1";
         previousPageButton.disabled = true;
         nextPageButton.disabled = true;
@@ -43,12 +44,15 @@ function renderReports(result) {
 
     result.items.forEach(function (report) {
         const row = document.createElement("tr");
-
         const exportStatusClass = report.exported ? "status-exported" : "status-not-exported";
         const exportStatusText = report.exported ? "Exported" : "Not Exported";
         const exportButtonDisabled = report.exported ? "disabled" : "";
+        const deleteButtonDisabled = report.exported ? "" : "disabled";
 
         row.innerHTML =
+            '<td class="text-center">' +
+            '<input type="checkbox" class="form-check-input report-selection-checkbox" value="' + report.id + '">' +
+            "</td>" +
             "<td>" + report.id + "</td>" +
             "<td>" + report.name + "</td>" +
             "<td>" + (report.position || "") + "</td>" +
@@ -59,7 +63,8 @@ function renderReports(result) {
             '<td><span class="' + exportStatusClass + '">' + exportStatusText + "</span></td>" +
             "<td>" +
             '<button class="btn btn-sm btn-outline-primary me-1" onclick="showReportDetails(' + report.id + ')">Details</button>' +
-            '<button class="btn btn-sm btn-outline-success" onclick="exportReportFromTable(' + report.id + ')" ' + exportButtonDisabled + ">Export</button>" +
+            '<button class="btn btn-sm btn-outline-success me-1" onclick="exportReportFromTable(' + report.id + ')" ' + exportButtonDisabled + ">Export</button>" +
+            '<button class="btn btn-sm btn-outline-danger" onclick="deleteReportFromTable(' + report.id + ')" ' + deleteButtonDisabled + ">Delete</button>" +
             "</td>";
 
         reportsTableBody.appendChild(row);
@@ -79,7 +84,10 @@ async function loadReports() {
         const result = await getVisitReports(options);
         renderReports(result);
     } catch (error) {
-        reportsTableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">' + error.message + "</td></tr>";
+        reportsTableBody.innerHTML =
+            '<tr><td colspan="10" class="text-center text-danger">' +
+            error.message +
+            "</td></tr>";
     }
 }
 
