@@ -1,4 +1,4 @@
-const apiBaseUrl = "http://localhost:8080/api/visit-reports";
+const apiBaseUrl = "/api/visit-reports";
 
 async function handleResponse(response) {
     if (!response.ok) {
