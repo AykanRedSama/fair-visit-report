@@ -1,0 +1,492 @@
+﻿BACKEND LOGGING REVIEW
+
+==================================================
+FILE: src/FairVisitReport.Api/FairVisitReport.Api.csproj
+==================================================
+
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+  </ItemGroup>
+
+</Project>
+
+
+==================================================
+FILE: src/FairVisitReport.Api/Program.cs
+==================================================
+
+using FairVisitReport.Api.Data;
+using FairVisitReport.Api.Services;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddScoped<VisitReportService>();
+builder.Services.AddScoped<ExportService>();
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHealthChecks();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend", policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+var app = builder.Build();
+
+app.UseCors("frontend");
+
+app.MapControllers();
+
+app.MapHealthChecks("/health");
+
+app.Run();
+
+==================================================
+FILE: src/FairVisitReport.Api/Services/VisitReportService.cs
+==================================================
+
+using FairVisitReport.Api.Data;
+using FairVisitReport.Api.DTOs;
+using FairVisitReport.Api.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace FairVisitReport.Api.Services;
+
+/// <summary>
+/// Provides business logic for creating, reading, updating and deleting visit reports.
+/// </summary>
+public class VisitReportService
+{
+    private readonly ApplicationDbContext db;
+
+    /// <summary>
+    /// Creates a new visit report service.
+    /// </summary>
+    public VisitReportService(ApplicationDbContext db)
+    {
+        this.db = db;
+    }
+
+    /// <summary>
+    /// Creates a new visit report and stores it in the database.
+    /// </summary>
+    public async Task<VisitReportDto> CreateAsync(CreateVisitReportRequest request)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var entity = new VisitReport
+        {
+            Name = request.Name.Trim(),
+            Position = request.Position?.Trim(),
+            Company = request.Company?.Trim(),
+            MailAddress = request.MailAddress?.Trim(),
+            PhoneNumber = request.PhoneNumber?.Trim(),
+            ReportText = request.ReportText.Trim(),
+            Exported = false,
+            ExportedAt = null,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        db.VisitReports.Add(entity);
+        await db.SaveChangesAsync();
+
+        return ToDto(entity);
+    }
+
+    /// <summary>
+    /// Returns a paginated, filterable and sortable list of visit reports.
+    /// </summary>
+    public async Task<PaginatedResult<VisitReportDto>> GetAllAsync(
+        bool? exported,
+        string? company,
+        string? name,
+        int page,
+        int pageSize,
+        string? sortBy,
+        string? sortDirection)
+    {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 25 : pageSize;
+        pageSize = pageSize > 100 ? 100 : pageSize;
+
+        var query = db.VisitReports.AsQueryable();
+
+        if (exported.HasValue)
+        {
+            query = query.Where(x => x.Exported == exported.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(company))
+        {
+            var companyFilter = company.Trim().ToLower();
+            query = query.Where(x => x.Company != null && x.Company.ToLower().Contains(companyFilter));
+        }
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var nameFilter = name.Trim().ToLower();
+            query = query.Where(x => x.Name.ToLower().Contains(nameFilter));
+        }
+
+        var descending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+
+        query = sortBy?.ToLower() switch
+        {
+            "name" => descending ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
+            "company" => descending ? query.OrderByDescending(x => x.Company) : query.OrderBy(x => x.Company),
+            "createdat" => descending ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
+            _ => query.OrderByDescending(x => x.CreatedAt)
+        };
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => ToDto(x))
+            .ToListAsync();
+
+        return new PaginatedResult<VisitReportDto>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+        };
+    }
+
+    /// <summary>
+    /// Returns a single visit report by its technical identifier.
+    /// </summary>
+    public async Task<VisitReportDto?> GetByIdAsync(long id)
+    {
+        var entity = await db.VisitReports.FindAsync(id);
+
+        if (entity == null)
+        {
+            return null;
+        }
+
+        return ToDto(entity);
+    }
+
+    /// <summary>
+    /// Updates an existing visit report.
+    /// </summary>
+    public async Task<VisitReportDto?> UpdateAsync(long id, UpdateVisitReportRequest request)
+    {
+        var entity = await db.VisitReports.FindAsync(id);
+
+        if (entity == null)
+        {
+            return null;
+        }
+
+        entity.Name = request.Name.Trim();
+        entity.Position = request.Position?.Trim();
+        entity.Company = request.Company?.Trim();
+        entity.MailAddress = request.MailAddress?.Trim();
+        entity.PhoneNumber = request.PhoneNumber?.Trim();
+        entity.ReportText = request.ReportText.Trim();
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        return ToDto(entity);
+    }
+
+    /// <summary>
+    /// Deletes a single visit report if it has already been exported.
+    /// </summary>
+    public async Task<string> DeleteAsync(long id)
+    {
+        var entity = await db.VisitReports.FindAsync(id);
+
+        if (entity == null)
+        {
+            return "not_found";
+        }
+
+        if (!entity.Exported)
+        {
+            return "not_exported";
+        }
+
+        db.VisitReports.Remove(entity);
+        await db.SaveChangesAsync();
+
+        return "deleted";
+    }
+
+    /// <summary>
+    /// Deletes all visit reports that have already been exported.
+    /// </summary>
+    public async Task<int> DeleteAllExportedAsync()
+    {
+        var entities = await db.VisitReports
+            .Where(x => x.Exported)
+            .ToListAsync();
+
+        db.VisitReports.RemoveRange(entities);
+        await db.SaveChangesAsync();
+
+        return entities.Count;
+    }
+
+    private static VisitReportDto ToDto(VisitReport entity)
+    {
+        return new VisitReportDto
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Position = entity.Position,
+            Company = entity.Company,
+            MailAddress = entity.MailAddress,
+            PhoneNumber = entity.PhoneNumber,
+            ReportText = entity.ReportText,
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt,
+            Exported = entity.Exported,
+            ExportedAt = entity.ExportedAt
+        };
+    }
+}
+
+==================================================
+FILE: src/FairVisitReport.Api/Services/ExportService.cs
+==================================================
+
+using FairVisitReport.Api.Data;
+using FairVisitReport.Api.DTOs;
+using FairVisitReport.Api.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace FairVisitReport.Api.Services;
+
+/// <summary>
+/// Provides business logic for exporting visit reports.
+/// </summary>
+public class ExportService
+{
+    private readonly ApplicationDbContext db;
+
+    /// <summary>
+    /// Creates a new export service.
+    /// </summary>
+    public ExportService(ApplicationDbContext db)
+    {
+        this.db = db;
+    }
+
+    /// <summary>
+    /// Exports a single visit report by its technical identifier.
+    /// </summary>
+    public async Task<VisitReportExportResponseDto?> ExportSingleAsync(long id)
+    {
+        var entity = await db.VisitReports.FindAsync(id);
+
+        if (entity == null)
+        {
+            return null;
+        }
+
+        var exportedAt = DateTimeOffset.UtcNow;
+
+        entity.Exported = true;
+        entity.ExportedAt = exportedAt;
+        entity.UpdatedAt = exportedAt;
+
+        await db.SaveChangesAsync();
+
+        return CreateResponse([entity], exportedAt);
+    }
+
+    /// <summary>
+    /// Exports multiple visit reports by their technical identifiers.
+    /// </summary>
+    public async Task<VisitReportExportResponseDto?> ExportManyAsync(List<long> ids)
+    {
+        var distinctIds = ids.Distinct().ToList();
+
+        var entities = await db.VisitReports
+            .Where(x => distinctIds.Contains(x.Id))
+            .ToListAsync();
+
+        if (entities.Count != distinctIds.Count)
+        {
+            return null;
+        }
+
+        var exportedAt = DateTimeOffset.UtcNow;
+
+        foreach (var entity in entities)
+        {
+            entity.Exported = true;
+            entity.ExportedAt = exportedAt;
+            entity.UpdatedAt = exportedAt;
+        }
+
+        await db.SaveChangesAsync();
+
+        return CreateResponse(entities, exportedAt);
+    }
+
+    /// <summary>
+    /// Exports all visit reports that have not been exported yet.
+    /// </summary>
+    public async Task<VisitReportExportResponseDto> ExportUnexportedAsync()
+    {
+        var entities = await db.VisitReports
+            .Where(x => !x.Exported)
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync();
+
+        var exportedAt = DateTimeOffset.UtcNow;
+
+        foreach (var entity in entities)
+        {
+            entity.Exported = true;
+            entity.ExportedAt = exportedAt;
+            entity.UpdatedAt = exportedAt;
+        }
+
+        await db.SaveChangesAsync();
+
+        return CreateResponse(entities, exportedAt);
+    }
+
+    private static VisitReportExportResponseDto CreateResponse(List<VisitReport> entities, DateTimeOffset exportedAt)
+    {
+        return new VisitReportExportResponseDto
+        {
+            ExportedAt = exportedAt,
+            Reports = entities.Select(ToExportDto).ToList()
+        };
+    }
+
+    private static VisitReportExportDto ToExportDto(VisitReport entity)
+    {
+        return new VisitReportExportDto
+        {
+            Id = entity.Id,
+            Visitor = new VisitorExportDto
+            {
+                Name = entity.Name,
+                Position = entity.Position,
+                Company = entity.Company,
+                MailAddress = entity.MailAddress,
+                PhoneNumber = entity.PhoneNumber
+            },
+            ReportText = entity.ReportText,
+            CreatedAt = entity.CreatedAt,
+            UpdatedAt = entity.UpdatedAt,
+            ExportedAt = entity.ExportedAt
+        };
+    }
+}
+
+==================================================
+FILE: src/FairVisitReport.Api/appsettings.json
+==================================================
+
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=fair_reports;Username=fair_user;Password=fair_password"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+
+==================================================
+FILE: docker-compose.yml
+==================================================
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: fair-visit-report-postgres
+    environment:
+      POSTGRES_DB: fair_reports
+      POSTGRES_USER: fair_user
+      POSTGRES_PASSWORD: fair_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fair_user -d fair_reports"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  syslog:
+    image: balabit/syslog-ng:latest
+    container_name: fair-visit-report-syslog
+    volumes:
+      - ./syslog/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+    ports:
+      - "514:514/udp"
+
+  api:
+    container_name: fair-visit-report-api
+    build:
+      context: ./src/FairVisitReport.Api
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=fair_reports;Username=fair_user;Password=fair_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    container_name: fair-visit-report-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

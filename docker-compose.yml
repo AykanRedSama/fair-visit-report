@@ -17,6 +17,14 @@ services:
       timeout: 5s
       retries: 10
 
+  syslog:
+    image: balabit/syslog-ng:latest
+    container_name: fair-visit-report-syslog
+    volumes:
+      - ./syslog/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+    ports:
+      - "514:514/udp"
+
   api:
     container_name: fair-visit-report-api
     build:
@@ -26,10 +34,15 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=fair_reports;Username=fair_user;Password=fair_password
+      Syslog__Host: syslog
+      Syslog__Port: 514
+      Logging__LogLevel__Default: Information
     ports:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      syslog:
         condition: service_healthy
 
   frontend:

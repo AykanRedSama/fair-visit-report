@@ -11,13 +11,17 @@ namespace FairVisitReport.Api.Services;
 public class ExportService
 {
     private readonly ApplicationDbContext db;
+    private readonly ILogger<ExportService> logger;
 
     /// <summary>
     /// Creates a new export service.
     /// </summary>
-    public ExportService(ApplicationDbContext db)
+    public ExportService(
+        ApplicationDbContext db,
+        ILogger<ExportService> logger)
     {
         this.db = db;
+        this.logger = logger;
     }
 
     /// <summary>
@@ -39,6 +43,10 @@ public class ExportService
         entity.UpdatedAt = exportedAt;
 
         await db.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Visit report exported with id {ReportId}",
+            entity.Id);
 
         return CreateResponse([entity], exportedAt);
     }
@@ -70,6 +78,10 @@ public class ExportService
 
         await db.SaveChangesAsync();
 
+        logger.LogInformation(
+            "Exported {ReportCount} selected visit reports",
+            entities.Count);
+
         return CreateResponse(entities, exportedAt);
     }
 
@@ -94,10 +106,16 @@ public class ExportService
 
         await db.SaveChangesAsync();
 
+        logger.LogInformation(
+            "Exported {ReportCount} previously unexported visit reports",
+            entities.Count);
+
         return CreateResponse(entities, exportedAt);
     }
 
-    private static VisitReportExportResponseDto CreateResponse(List<VisitReport> entities, DateTimeOffset exportedAt)
+    private static VisitReportExportResponseDto CreateResponse(
+        List<VisitReport> entities,
+        DateTimeOffset exportedAt)
     {
         return new VisitReportExportResponseDto
         {

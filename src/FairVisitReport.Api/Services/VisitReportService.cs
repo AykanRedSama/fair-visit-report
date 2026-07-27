@@ -11,13 +11,17 @@ namespace FairVisitReport.Api.Services;
 public class VisitReportService
 {
     private readonly ApplicationDbContext db;
+    private readonly ILogger<VisitReportService> logger;
 
     /// <summary>
     /// Creates a new visit report service.
     /// </summary>
-    public VisitReportService(ApplicationDbContext db)
+    public VisitReportService(
+        ApplicationDbContext db,
+        ILogger<VisitReportService> logger)
     {
         this.db = db;
+        this.logger = logger;
     }
 
     /// <summary>
@@ -43,6 +47,10 @@ public class VisitReportService
 
         db.VisitReports.Add(entity);
         await db.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Visit report created with id {ReportId}",
+            entity.Id);
 
         return ToDto(entity);
     }
@@ -73,22 +81,39 @@ public class VisitReportService
         if (!string.IsNullOrWhiteSpace(company))
         {
             var companyFilter = company.Trim().ToLower();
-            query = query.Where(x => x.Company != null && x.Company.ToLower().Contains(companyFilter));
+
+            query = query.Where(x =>
+                x.Company != null &&
+                x.Company.ToLower().Contains(companyFilter));
         }
 
         if (!string.IsNullOrWhiteSpace(name))
         {
             var nameFilter = name.Trim().ToLower();
-            query = query.Where(x => x.Name.ToLower().Contains(nameFilter));
+
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(nameFilter));
         }
 
-        var descending = string.Equals(sortDirection, "desc", StringComparison.OrdinalIgnoreCase);
+        var descending = string.Equals(
+            sortDirection,
+            "desc",
+            StringComparison.OrdinalIgnoreCase);
 
         query = sortBy?.ToLower() switch
         {
-            "name" => descending ? query.OrderByDescending(x => x.Name) : query.OrderBy(x => x.Name),
-            "company" => descending ? query.OrderByDescending(x => x.Company) : query.OrderBy(x => x.Company),
-            "createdat" => descending ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
+            "name" => descending
+                ? query.OrderByDescending(x => x.Name)
+                : query.OrderBy(x => x.Name),
+
+            "company" => descending
+                ? query.OrderByDescending(x => x.Company)
+                : query.OrderBy(x => x.Company),
+
+            "createdat" => descending
+                ? query.OrderByDescending(x => x.CreatedAt)
+                : query.OrderBy(x => x.CreatedAt),
+
             _ => query.OrderByDescending(x => x.CreatedAt)
         };
 
@@ -106,7 +131,8 @@ public class VisitReportService
             Page = page,
             PageSize = pageSize,
             TotalItems = totalItems,
-            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize)
+            TotalPages = (int)Math.Ceiling(
+                totalItems / (double)pageSize)
         };
     }
 
@@ -128,7 +154,9 @@ public class VisitReportService
     /// <summary>
     /// Updates an existing visit report.
     /// </summary>
-    public async Task<VisitReportDto?> UpdateAsync(long id, UpdateVisitReportRequest request)
+    public async Task<VisitReportDto?> UpdateAsync(
+        long id,
+        UpdateVisitReportRequest request)
     {
         var entity = await db.VisitReports.FindAsync(id);
 
@@ -146,6 +174,10 @@ public class VisitReportService
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
         await db.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Visit report updated with id {ReportId}",
+            entity.Id);
 
         return ToDto(entity);
     }
@@ -170,6 +202,10 @@ public class VisitReportService
         db.VisitReports.Remove(entity);
         await db.SaveChangesAsync();
 
+        logger.LogInformation(
+            "Visit report deleted with id {ReportId}",
+            entity.Id);
+
         return "deleted";
     }
 
@@ -184,6 +220,10 @@ public class VisitReportService
 
         db.VisitReports.RemoveRange(entities);
         await db.SaveChangesAsync();
+
+        logger.LogInformation(
+            "Deleted {ReportCount} exported visit reports",
+            entities.Count);
 
         return entities.Count;
     }
