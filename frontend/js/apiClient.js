@@ -1,5 +1,8 @@
 const apiBaseUrl = "/api/visit-reports";
 
+/// <summary>
+/// Handles API responses and throws an error for unsuccessful requests.
+/// </summary>
 async function handleResponse(response) {
     if (!response.ok) {
         let errorMessage = "request failed";
@@ -21,6 +24,9 @@ async function handleResponse(response) {
     return await response.json();
 }
 
+/// <summary>
+/// Sends a request to create a new visit report.
+/// </summary>
 async function createVisitReport(report) {
     const response = await fetch(apiBaseUrl, {
         method: "POST",
@@ -33,6 +39,9 @@ async function createVisitReport(report) {
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Returns a filtered, sorted and paginated list of visit reports.
+/// </summary>
 async function getVisitReports(options = {}) {
     const params = new URLSearchParams();
 
@@ -65,12 +74,18 @@ async function getVisitReports(options = {}) {
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Returns a single visit report by its identifier.
+/// </summary>
 async function getVisitReportById(id) {
     const response = await fetch(apiBaseUrl + "/" + id);
 
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Sends a request to update an existing visit report.
+/// </summary>
 async function updateVisitReport(id, report) {
     const response = await fetch(apiBaseUrl + "/" + id, {
         method: "PUT",
@@ -83,12 +98,18 @@ async function updateVisitReport(id, report) {
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Exports a single visit report by its identifier.
+/// </summary>
 async function exportSingleReport(id) {
     const response = await fetch(apiBaseUrl + "/" + id + "/export");
 
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Exports multiple selected visit reports by their identifiers.
+/// </summary>
 async function exportSelectedReports(ids) {
     const response = await fetch(apiBaseUrl + "/export", {
         method: "POST",
@@ -103,6 +124,9 @@ async function exportSelectedReports(ids) {
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Exports all visit reports that have not been exported yet.
+/// </summary>
 async function exportUnexportedReports() {
     const response = await fetch(apiBaseUrl + "/export-unexported", {
         method: "POST"
@@ -111,6 +135,9 @@ async function exportUnexportedReports() {
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Deletes a single exported visit report by its identifier.
+/// </summary>
 async function deleteVisitReport(id) {
     const response = await fetch(apiBaseUrl + "/" + id, {
         method: "DELETE"
@@ -119,6 +146,9 @@ async function deleteVisitReport(id) {
     return await handleResponse(response);
 }
 
+/// <summary>
+/// Deletes all visit reports that have already been exported.
+/// </summary>
 async function deleteAllExportedReports() {
     const response = await fetch(apiBaseUrl + "/exported", {
         method: "DELETE"

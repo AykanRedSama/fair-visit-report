@@ -1,4 +1,3 @@
-
 let currentPage = 1;
 let currentPageSize = 25;
 let totalPages = 1;
@@ -11,6 +10,9 @@ const refreshReportsButton = document.getElementById("refreshReportsButton");
 const applyFiltersButton = document.getElementById("applyFiltersButton");
 const clearFiltersButton = document.getElementById("clearFiltersButton");
 
+/// <summary>
+/// Returns the current filter, sorting and pagination options.
+/// </summary>
 function getFilterOptions() {
     return {
         page: currentPage,
@@ -23,6 +25,9 @@ function getFilterOptions() {
     };
 }
 
+/// <summary>
+/// Formats a date value for display in the user interface.
+/// </summary>
 function formatDate(value) {
     if (!value) {
         return "";
@@ -31,6 +36,9 @@ function formatDate(value) {
     return new Date(value).toLocaleString();
 }
 
+/// <summary>
+/// Renders the paginated visit report result in the report table.
+/// </summary>
 function renderReports(result) {
     reportsTableBody.innerHTML = "";
 
@@ -78,6 +86,9 @@ function renderReports(result) {
     nextPageButton.disabled = currentPage >= totalPages;
 }
 
+/// <summary>
+/// Loads visit reports from the backend API and renders the result.
+/// </summary>
 async function loadReports() {
     try {
         const options = getFilterOptions();
@@ -91,6 +102,9 @@ async function loadReports() {
     }
 }
 
+/// <summary>
+/// Loads and displays the full details of a single visit report.
+/// </summary>
 async function showReportDetails(id) {
     try {
         const report = await getVisitReportById(id);
@@ -113,15 +127,24 @@ async function showReportDetails(id) {
     }
 }
 
+/// <summary>
+/// Reloads the current visit report list.
+/// </summary>
 refreshReportsButton.addEventListener("click", async function () {
     await loadReports();
 });
 
+/// <summary>
+/// Applies the selected filters and reloads the first result page.
+/// </summary>
 applyFiltersButton.addEventListener("click", async function () {
     currentPage = 1;
     await loadReports();
 });
 
+/// <summary>
+/// Resets all filters and reloads the first result page.
+/// </summary>
 clearFiltersButton.addEventListener("click", async function () {
     document.getElementById("filterName").value = "";
     document.getElementById("filterCompany").value = "";
@@ -133,6 +156,9 @@ clearFiltersButton.addEventListener("click", async function () {
     await loadReports();
 });
 
+/// <summary>
+/// Loads the previous result page when one is available.
+/// </summary>
 previousPageButton.addEventListener("click", async function () {
     if (currentPage > 1) {
         currentPage--;
@@ -140,6 +166,9 @@ previousPageButton.addEventListener("click", async function () {
     }
 });
 
+/// <summary>
+/// Loads the next result page when one is available.
+/// </summary>
 nextPageButton.addEventListener("click", async function () {
     if (currentPage < totalPages) {
         currentPage++;
@@ -147,6 +176,9 @@ nextPageButton.addEventListener("click", async function () {
     }
 });
 
+/// <summary>
+/// Loads the initial visit report list after the page is ready.
+/// </summary>
 document.addEventListener("DOMContentLoaded", async function () {
     await loadReports();
 });

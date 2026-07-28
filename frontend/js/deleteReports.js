@@ -1,6 +1,10 @@
-
+/// <summary>
+/// Deletes a single exported visit report after user confirmation.
+/// </summary>
 async function deleteReportFromTable(id) {
-    const confirmed = confirm("Do you really want to delete this exported visit report?");
+    const confirmed = confirm(
+        "Do you really want to delete this exported visit report?"
+    );
 
     if (!confirmed) {
         return;
@@ -14,8 +18,13 @@ async function deleteReportFromTable(id) {
     }
 }
 
+/// <summary>
+/// Deletes all exported visit reports after user confirmation.
+/// </summary>
 async function deleteAllExportedReportsFromTable() {
-    const confirmed = confirm("Do you really want to delete all exported visit reports?");
+    const confirmed = confirm(
+        "Do you really want to delete all exported visit reports?"
+    );
 
     if (!confirmed) {
         return;
@@ -24,7 +33,10 @@ async function deleteAllExportedReportsFromTable() {
     try {
         const result = await deleteAllExportedReports();
 
-        alert(result.deletedCount + " exported visit report(s) deleted.");
+        alert(
+            result.deletedCount +
+            " exported visit report(s) deleted."
+        );
 
         await loadReports();
     } catch (error) {

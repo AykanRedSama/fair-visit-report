@@ -1,4 +1,6 @@
-
+/// <summary>
+/// Creates a unique JSON export file name using the current date and time.
+/// </summary>
 function createExportFileName() {
     const now = new Date();
     const year = now.getFullYear();
@@ -11,6 +13,9 @@ function createExportFileName() {
     return "visit-reports-export-" + year + month + day + "-" + hours + minutes + seconds + ".json";
 }
 
+/// <summary>
+/// Creates and downloads a JSON file containing the exported visit report data.
+/// </summary>
 function downloadJsonFile(data) {
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
@@ -27,6 +32,9 @@ function downloadJsonFile(data) {
     URL.revokeObjectURL(url);
 }
 
+/// <summary>
+/// Exports and downloads a single visit report by its identifier.
+/// </summary>
 async function exportReportFromTable(id) {
     try {
         const result = await exportSingleReport(id);
@@ -37,6 +45,9 @@ async function exportReportFromTable(id) {
     }
 }
 
+/// <summary>
+/// Exports and downloads all visit reports selected in the report table.
+/// </summary>
 async function exportSelectedReportsFromTable() {
     const selectedCheckboxes = document.querySelectorAll(".report-selection-checkbox:checked");
 
@@ -58,6 +69,9 @@ async function exportSelectedReportsFromTable() {
     }
 }
 
+/// <summary>
+/// Exports and downloads all visit reports that have not been exported yet.
+/// </summary>
 async function exportAllUnexportedReportsFromTable() {
     try {
         const result = await exportUnexportedReports();
