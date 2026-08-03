@@ -1,16 +1,26 @@
 services:
   postgres:
+    # Use a fixed PostgreSQL version for a reproducible database environment.
     image: postgres:16
     container_name: fair-visit-report-postgres
+
+    # Configure the database created during the first initialization.
     environment:
       POSTGRES_DB: fair_reports
       POSTGRES_USER: fair_user
       POSTGRES_PASSWORD: fair_password
+
     volumes:
+      # Store database files outside the container lifecycle.
       - postgres_data:/var/lib/postgresql/data
+
+      # Create the required database schema during initial database setup.
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
     ports:
       - "5432:5432"
+
+    # Verify that PostgreSQL is ready to accept connections.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fair_user -d fair_reports"]
       interval: 5s
@@ -18,27 +28,44 @@ services:
       retries: 10
 
   syslog:
+    # Provide a separate syslog server for centralized backend logging.
     image: balabit/syslog-ng:latest
     container_name: fair-visit-report-syslog
+
     volumes:
+      # Mount the project-specific syslog configuration as read-only.
       - ./syslog/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+
     ports:
       - "514:514/udp"
 
   api:
     container_name: fair-visit-report-api
+
+    # Build the API image from the backend Dockerfile.
     build:
       context: ./src/FairVisitReport.Api
       dockerfile: Dockerfile
+
+    # Configure the API without changing or rebuilding the application code.
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+
+      # Use the Docker service name because localhost would refer
+      # to the API container itself.
       ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=fair_reports;Username=fair_user;Password=fair_password
+
+      # Forward backend logs to the syslog service over UDP port 514.
       Syslog__Host: syslog
       Syslog__Port: 514
       Logging__LogLevel__Default: Information
+
+    # Forward host port 8080 to API port 8080 inside the container.
     ports:
       - "8080:8080"
+
+    # Start the API after its required infrastructure services are healthy.
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,13 +74,21 @@ services:
 
   frontend:
     container_name: fair-visit-report-frontend
+
+    # Build the frontend web server image from its Dockerfile.
     build:
       context: ./frontend
       dockerfile: Dockerfile
+
+    # Forward host port 8081 to NGINX port 80.
     ports:
       - "8081:80"
+
+    # The frontend uses the API through the NGINX reverse proxy.
     depends_on:
       - api
+
+    # Verify that the frontend web server responds to HTTP requests.
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
       interval: 5s
@@ -61,4 +96,5 @@ services:
       retries: 10
 
 volumes:
+  # Keep PostgreSQL data when the database container is replaced.
   postgres_data:
