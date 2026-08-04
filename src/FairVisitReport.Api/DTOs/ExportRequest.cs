@@ -10,7 +10,6 @@ public class ExportRequest
     /// <summary>
     /// Technical identifiers of the visit reports that should be exported.
     /// </summary>
-    [Required]
-    [MinLength(1)]
+  
     public List<long> Ids { get; set; } = [];
 }
