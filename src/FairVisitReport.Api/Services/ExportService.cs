@@ -12,27 +12,36 @@ public class ExportService
 {
     private readonly ApplicationDbContext db;
     private readonly ILogger<ExportService> logger;
+    private readonly IHttpContextAccessor httpContextAccessor;
 
     /// <summary>
     /// Creates a new export service.
     /// </summary>
     public ExportService(
         ApplicationDbContext db,
-        ILogger<ExportService> logger)
+        ILogger<ExportService> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         this.db = db;
         this.logger = logger;
+        this.httpContextAccessor = httpContextAccessor;
     }
 
     /// <summary>
     /// Exports a single visit report by its technical identifier.
     /// </summary>
-    public async Task<VisitReportExportResponseDto?> ExportSingleAsync(long id)
+    public async Task<VisitReportExportResponseDto?>
+        ExportSingleAsync(long id)
     {
         var entity = await db.VisitReports.FindAsync(id);
 
         if (entity == null)
         {
+            logger.LogWarning(
+                "Visit report export failed because id {ReportId} was not found with correlation id {CorrelationId}",
+                id,
+                GetCorrelationId());
+
             return null;
         }
 
@@ -45,8 +54,9 @@ public class ExportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Visit report exported with id {ReportId}",
-            entity.Id);
+            "Visit report exported with id {ReportId} and correlation id {CorrelationId}",
+            entity.Id,
+            GetCorrelationId());
 
         return CreateResponse([entity], exportedAt);
     }
@@ -54,7 +64,8 @@ public class ExportService
     /// <summary>
     /// Exports multiple visit reports by their technical identifiers.
     /// </summary>
-    public async Task<VisitReportExportResponseDto?> ExportManyAsync(List<long> ids)
+    public async Task<VisitReportExportResponseDto?>
+        ExportManyAsync(List<long> ids)
     {
         var distinctIds = ids.Distinct().ToList();
 
@@ -64,6 +75,10 @@ public class ExportService
 
         if (entities.Count != distinctIds.Count)
         {
+            logger.LogWarning(
+                "Selected visit report export failed because one or more ids were not found with correlation id {CorrelationId}",
+                GetCorrelationId());
+
             return null;
         }
 
@@ -79,8 +94,9 @@ public class ExportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Exported {ReportCount} selected visit reports",
-            entities.Count);
+            "Exported {ReportCount} selected visit reports with correlation id {CorrelationId}",
+            entities.Count,
+            GetCorrelationId());
 
         return CreateResponse(entities, exportedAt);
     }
@@ -88,7 +104,8 @@ public class ExportService
     /// <summary>
     /// Exports all visit reports that have not been exported yet.
     /// </summary>
-    public async Task<VisitReportExportResponseDto> ExportUnexportedAsync()
+    public async Task<VisitReportExportResponseDto>
+        ExportUnexportedAsync()
     {
         var entities = await db.VisitReports
             .Where(x => !x.Exported)
@@ -107,10 +124,17 @@ public class ExportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Exported {ReportCount} previously unexported visit reports",
-            entities.Count);
+            "Exported {ReportCount} previously unexported visit reports with correlation id {CorrelationId}",
+            entities.Count,
+            GetCorrelationId());
 
         return CreateResponse(entities, exportedAt);
+    }
+
+    private string GetCorrelationId()
+    {
+        return httpContextAccessor.HttpContext?.TraceIdentifier
+            ?? "system";
     }
 
     private static VisitReportExportResponseDto CreateResponse(
@@ -124,7 +148,8 @@ public class ExportService
         };
     }
 
-    private static VisitReportExportDto ToExportDto(VisitReport entity)
+    private static VisitReportExportDto ToExportDto(
+        VisitReport entity)
     {
         return new VisitReportExportDto
         {

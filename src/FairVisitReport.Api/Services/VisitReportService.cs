@@ -12,22 +12,26 @@ public class VisitReportService
 {
     private readonly ApplicationDbContext db;
     private readonly ILogger<VisitReportService> logger;
+    private readonly IHttpContextAccessor httpContextAccessor;
 
     /// <summary>
     /// Creates a new visit report service.
     /// </summary>
     public VisitReportService(
         ApplicationDbContext db,
-        ILogger<VisitReportService> logger)
+        ILogger<VisitReportService> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         this.db = db;
         this.logger = logger;
+        this.httpContextAccessor = httpContextAccessor;
     }
 
     /// <summary>
     /// Creates a new visit report and stores it in the database.
     /// </summary>
-    public async Task<VisitReportDto> CreateAsync(CreateVisitReportRequest request)
+    public async Task<VisitReportDto> CreateAsync(
+        CreateVisitReportRequest request)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -49,8 +53,9 @@ public class VisitReportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Visit report created with id {ReportId}",
-            entity.Id);
+            "Visit report created with id {ReportId} and correlation id {CorrelationId}",
+            entity.Id,
+            GetCorrelationId());
 
         return ToDto(entity);
     }
@@ -75,7 +80,8 @@ public class VisitReportService
 
         if (exported.HasValue)
         {
-            query = query.Where(x => x.Exported == exported.Value);
+            query = query.Where(x =>
+                x.Exported == exported.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(company))
@@ -176,8 +182,9 @@ public class VisitReportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Visit report updated with id {ReportId}",
-            entity.Id);
+            "Visit report updated with id {ReportId} and correlation id {CorrelationId}",
+            entity.Id,
+            GetCorrelationId());
 
         return ToDto(entity);
     }
@@ -191,11 +198,21 @@ public class VisitReportService
 
         if (entity == null)
         {
+            logger.LogWarning(
+                "Visit report deletion failed because id {ReportId} was not found with correlation id {CorrelationId}",
+                id,
+                GetCorrelationId());
+
             return "not_found";
         }
 
         if (!entity.Exported)
         {
+            logger.LogWarning(
+                "Visit report deletion rejected for id {ReportId} because it was not exported with correlation id {CorrelationId}",
+                id,
+                GetCorrelationId());
+
             return "not_exported";
         }
 
@@ -203,8 +220,9 @@ public class VisitReportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Visit report deleted with id {ReportId}",
-            entity.Id);
+            "Visit report deleted with id {ReportId} and correlation id {CorrelationId}",
+            entity.Id,
+            GetCorrelationId());
 
         return "deleted";
     }
@@ -222,10 +240,17 @@ public class VisitReportService
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Deleted {ReportCount} exported visit reports",
-            entities.Count);
+            "Deleted {ReportCount} exported visit reports with correlation id {CorrelationId}",
+            entities.Count,
+            GetCorrelationId());
 
         return entities.Count;
+    }
+
+    private string GetCorrelationId()
+    {
+        return httpContextAccessor.HttpContext?.TraceIdentifier
+            ?? "system";
     }
 
     private static VisitReportDto ToDto(VisitReport entity)
