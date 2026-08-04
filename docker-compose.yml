@@ -69,6 +69,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
       syslog:
         condition: service_healthy
 
@@ -88,9 +89,9 @@ services:
     depends_on:
       - api
 
-    # Verify that the frontend web server responds to HTTP requests.
+    # Verify that the frontend web server responds over IPv4.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10
