@@ -1,0 +1,11 @@
+﻿apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fair-visit-report-config
+  namespace: fair-visit-report
+data:
+  ASPNETCORE_ENVIRONMENT: "Development"
+  ASPNETCORE_URLS: "http://+:8080"
+  Syslog__Host: "syslog"
+  Syslog__Port: "514"
+  Logging__LogLevel__Default: "Information"
